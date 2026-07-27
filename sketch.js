@@ -10,9 +10,9 @@ let nubeY;
 let radioNube;
 
 // MECÁNICA DE TIEMPO
-let tiempoLimite = 80;
+let tiempoLimite = 50;
 let tiempoRestante;
-let frameInicial;
+let tiempoInicioJuego = 0;
 let framesPausados = 0;
 
 // VARIABLES DE CONTROL (Compartidas)
@@ -260,12 +260,15 @@ function draw() {
   }
 
   if (!enLandscape) {
-    if (!estabaPausadoPorRotacion) estabaPausadoPorRotacion = true;
-    framesPausados++;
+    if (!estabaPausadoPorRotacion) {
+      estabaPausadoPorRotacion = true;
+      tiempoInicioPausa = millis(); // Empezamos a contar la pausa
+    }
     dibujarCartelRotar();
     return;
   } else if (estabaPausadoPorRotacion) {
     estabaPausadoPorRotacion = false;
+    tiempoAcumuladoPausa += (millis() - tiempoInicioPausa); // Sumamos el tiempo que estuvo pausado
   }
 
   actualizarControlesTeclado();
@@ -431,7 +434,7 @@ function pantallaIntro() {
 }
 
 function actualizarJuego() {
-  let segundosTranscurridos = floor((frameCount - frameInicial - framesPausados) / 60);
+  let segundosTranscurridos = floor((millis() - tiempoInicioJuego - tiempoAcumuladoPausa) / 1000);
   tiempoRestante = tiempoLimite - segundosTranscurridos;
 
   if (manoAbierta) {
@@ -489,8 +492,10 @@ function reiniciarJuego() {
   gotas = [];
   manoAbierta = false;
   manoAbiertaAnterior = false;
-  frameInicial = frameCount;
-  framesPausados = 0;
+  
+  // Guardamos el momento exacto de inicio en milisegundos
+  tiempoInicioJuego = millis();
+  tiempoAcumuladoPausa = 0;
   tiempoRestante = tiempoLimite;
 
   tiempoInicioEscena = millis();
