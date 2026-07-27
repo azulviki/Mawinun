@@ -1,5 +1,5 @@
 // --- VARIABLES GLOBALES ---
-let escena = "JUEGO";
+let escena = "INTRO";
 let arboles = [];
 let gotas = [];
 let cantidadArboles = 20;
@@ -18,8 +18,18 @@ let framesPausados = 0; // frames "congelados" mientras el celular está en vert
 // VARIABLES DE CONTROL (Compartidas)
 let manoAbierta = false;
 let manoAbiertaAnterior = false;
-let tiempoPantallaFinal = 0;
+let tiempoInicioEscena = 0; // momento en que arrancó la escena actual (INTRO / VICTORIA / DERROTA)
 let últimoTouchTime = 0;
+
+// --- VARIABLES DE DETECCIÓN DE "AGITAR LA MANO" ---
+// Se usa en INTRO, VICTORIA y DERROTA para avanzar de pantalla.
+// No reemplaza a "manoAbierta" (que sigue sirviendo para regar en el juego).
+let nivelAgitacion = 0; // de 0 a 1, se llena agitando y se vacía si dejás de agitar
+const AGITACION_INCREMENTO = 0.045; // qué tan rápido se llena por frame agitando
+const AGITACION_DECAIMIENTO = 0.02; // qué tan rápido se vacía por frame sin agitar
+const AGITACION_UMBRAL_MOVIMIENTO = 0.35; // cuánto movimiento (en 500ms) cuenta como "agitar"
+const AGITACION_TIEMPO_MINIMO = 1200; // ms mínimos antes de poder avanzar (para poder leer el texto)
+let historialManoX = []; // últimas posiciones crudas de la muñeca, con timestamp
 
 // --- VARIABLES MEDIA PIPE (Cámara) ---
 let video;
@@ -27,7 +37,7 @@ let hands;
 
 // --- VARIABLES WEBSOCKET / OSC (Comentadas por si acaso) ---
 // let ws; // [WS] Descomentar si volvés a WebSockets
-// let celularManoX = 0; // [WS] 
+// let celularManoX = 0; // [WS]
 
 // ==========================================
 // LIENZO LÓGICO FIJO 16:9 (responsive)
@@ -76,6 +86,7 @@ function setup() {
   nubeX = LW / 2;
   nubeY = LH * 0.26; // un poco más abajo, para dejarle más aire arriba
   frameInicial = frameCount;
+  tiempoInicioEscena = millis();
 
   calcularEscala();
 
@@ -117,7 +128,7 @@ function setup() {
   // ==========================================
   // OPCIÓN B: WEBSOCKET / OSC (Comentado)
   // ==========================================
-  // conectarWS(); 
+  // conectarWS();
 
   crearArboles();
 }
@@ -169,7 +180,7 @@ function conectarWS() {
 
   ws.onclose = function() {
     console.log("Se cortó la conexión, reintentando en 2s...");
-    setTimeout(conectarWS, 2000); 
+    setTimeout(conectarWS, 2000);
   };
 
   ws.onerror = function(err) {
@@ -180,13 +191,13 @@ function conectarWS() {
 
 function oscReceived(address, value) {
   if (address === "/oscControl/la_nube/x") {
-    celularManoX = value[0]; 
+    celularManoX = value[0];
     nubeX = map(celularManoX, 0, 1, 0, width);
   }
-  
+
   if (address === "/oscControl/la_nube/agua") {
-    let estadoBoton = value[0]; 
-    últimoTouchTime = millis(); 
+    let estadoBoton = value[0];
+    últimoTouchTime = millis();
     manoAbierta = (estadoBoton === 1);
   }
 }
@@ -213,6 +224,7 @@ function draw() {
   }
 
   actualizarControlesTeclado();
+  actualizarAgitacion();
 
   // A partir de acá, todo se dibuja en el lienzo lógico 960x540,
   // escalado y centrado dentro de la ventana real.
@@ -220,18 +232,19 @@ function draw() {
   translate(offsetX, offsetY);
   scale(escalaJuego);
 
-  if (escena === "JUEGO") {
+  if (escena === "INTRO") {
+    pantallaIntro();
+  }
+  else if (escena === "JUEGO") {
     let incendios = 0;
     for (let i = 0; i < arboles.length; i++) {
       if (arboles[i].estado === "FUEGO") incendios++;
     }
 
     if (tiempoRestante <= 0) {
-      escena = "DERROTA";
-      tiempoPantallaFinal = millis();
+      cambiarEscena("DERROTA");
     } else if (incendios === 0) {
-      escena = "VICTORIA";
-      tiempoPantallaFinal = millis();
+      cambiarEscena("VICTORIA");
     }
 
     actualizarJuego();
@@ -270,6 +283,10 @@ function onHandResults(results) {
     let xMuñeca = 1 - puntosMano[0].x;
     nubeX = lerp(nubeX, map(xMuñeca, 0.2, 0.8, radioNube, LW - radioNube), 0.2);
 
+    // Guardamos la posición cruda (sin lerp) para poder medir agitación real.
+    historialManoX.push({ x: xMuñeca, t: millis() });
+    if (historialManoX.length > 90) historialManoX.shift();
+
     let pulgar = puntosMano[4];
     let indice = puntosMano[8];
     let d = dist(pulgar.x, pulgar.y, indice.x, indice.y);
@@ -295,8 +312,87 @@ function actualizarControlesTeclado() {
   }
 }
 
+// ==========================================
+// DETECCIÓN DE "AGITAR LA MANO"
+// Se usa para avanzar en INTRO / VICTORIA / DERROTA.
+// Requiere movimiento real de la mano (no simplemente tenerla abierta),
+// así el mensaje de cada pantalla se alcanza a leer.
+// ==========================================
+function actualizarAgitacion() {
+  let ahora = millis();
+
+  // Nos quedamos solo con los puntos de los últimos 500ms
+  historialManoX = historialManoX.filter(p => ahora - p.t < 500);
+
+  let movimientoTotal = 0;
+  for (let i = 1; i < historialManoX.length; i++) {
+    movimientoTotal += abs(historialManoX[i].x - historialManoX[i - 1].x);
+  }
+
+  let agitandoPorCamara = movimientoTotal > AGITACION_UMBRAL_MOVIMIENTO;
+  // Se mantiene la tecla DOWN_ARROW tal cual funcionaba (abre la mano);
+  // acá además la reutilizamos para poder probar la agitación sin cámara.
+  let agitandoPorTeclado = keyIsDown(DOWN_ARROW);
+
+  if (agitandoPorCamara || agitandoPorTeclado) {
+    nivelAgitacion = min(1, nivelAgitacion + AGITACION_INCREMENTO);
+  } else {
+    nivelAgitacion = max(0, nivelAgitacion - AGITACION_DECAIMIENTO);
+  }
+}
+
+function agitacionCompleta() {
+  return (millis() - tiempoInicioEscena > AGITACION_TIEMPO_MINIMO) && nivelAgitacion >= 1;
+}
+
+function dibujarBarraAgitacion(x, y, w, h) {
+  push();
+  noStroke();
+  fill(255, 255, 255, 60);
+  rect(x, y, w, h, h / 2);
+  fill(80, 220, 120);
+  rect(x, y, w * nivelAgitacion, h, h / 2);
+  pop();
+}
+
+function cambiarEscena(nuevaEscena) {
+  escena = nuevaEscena;
+  tiempoInicioEscena = millis();
+  nivelAgitacion = 0;
+  historialManoX = [];
+}
+
 function intentarReiniciar() {
-  if (manoAbierta && (millis() - tiempoPantallaFinal > 1500)) {
+  if (agitacionCompleta()) {
+    reiniciarJuego();
+  }
+}
+
+// ==========================================
+// PANTALLA DE INTRODUCCIÓN
+// ==========================================
+function pantallaIntro() {
+  background(15, 25, 35);
+  textAlign(CENTER, CENTER);
+
+  fill(255);
+  textStyle(BOLD);
+  textSize(42);
+  text("🔥 SALVÁ EL BOSQUE 🔥", LW / 2, LH * 0.16);
+
+  textStyle(NORMAL);
+  textSize(20);
+  text("Movés la nube con la mano para llevarla arriba de los árboles en llamas.", LW / 2, LH * 0.34);
+  text("Abrí la mano (separá el pulgar del índice) para que llueva y apagar el fuego.", LW / 2, LH * 0.34 + 32);
+  text("Apagá todos los árboles antes de que se acabe el tiempo.", LW / 2, LH * 0.34 + 64);
+
+  textSize(24);
+  fill(255, 210, 0);
+  text("¡Agitá la mano MUY FUERTE para empezar!", LW / 2, LH * 0.74);
+
+  dibujarBarraAgitacion(LW / 2 - 150, LH * 0.82, 300, 22);
+
+  if (agitacionCompleta()) {
     reiniciarJuego();
   }
 }
@@ -356,11 +452,13 @@ function pantallaFinal(mensaje, colorFondo, colorTexto) {
 
   textSize(48);
   textStyle(BOLD);
-  text(mensaje, LW / 2, LH / 2 - 40);
+  text(mensaje, LW / 2, LH / 2 - 50);
 
   textStyle(NORMAL);
   textSize(22);
-  text("Mantené la mano abierta para volver a jugar", LW / 2, LH / 2 + 40);
+  text("Agitá la mano MUY FUERTE para volver a jugar", LW / 2, LH / 2 + 20);
+
+  dibujarBarraAgitacion(LW / 2 - 150, LH / 2 + 55, 300, 20);
 }
 
 function reiniciarJuego() {
@@ -371,6 +469,10 @@ function reiniciarJuego() {
   frameInicial = frameCount;
   framesPausados = 0;
   tiempoRestante = tiempoLimite;
+
+  tiempoInicioEscena = millis();
+  nivelAgitacion = 0;
+  historialManoX = [];
 
   crearArboles();
 }
