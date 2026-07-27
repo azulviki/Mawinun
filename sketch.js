@@ -105,15 +105,16 @@ function setup() {
     }
   });
 
-  // ==========================================
-  // MEDIA PIPE (cámara)
+
+ // ==========================================
+  // MEDIA PIPE (Cámara optimizada para móviles)
   // ==========================================
   video = createCapture({
     audio: false,
     video: {
       facingMode: "user",
-      width: 640,
-      height: 480
+      width: { ideal: 320 },  // <--- Bajamos a 320px para no saturar la CPU del celu
+      height: { ideal: 240 }
     }
   });
   video.hide();
@@ -124,24 +125,23 @@ function setup() {
 
   hands.setOptions({
     maxNumHands: 2,
-    modelComplexity: 1,
-    minDetectionConfidence: 0.4,
-    minTrackingConfidence: 0.4
+    modelComplexity: 0,        // <--- CAMBIO CLAVE: 0 = Lite (Súper veloz en celulares)
+    minDetectionConfidence: 0.3, // <--- Más permisivo si hay sombra o baja luz
+    minTrackingConfidence: 0.3
   });
 
   hands.onResults(onHandResults);
 
   const camera = new Camera(video.elt, {
     onFrame: async () => {
-      if (video.elt) {
+      if (video.elt && video.elt.readyState === 4) { // Asegura que el video esté listo
         await hands.send({ image: video.elt });
       }
     },
-    width: 640,
-    height: 480
+    width: 320,
+    height: 240
   });
   camera.start();
-
   // ==========================================
   // WEBSOCKET / OSC (Comentado)
   // ==========================================
@@ -328,7 +328,7 @@ function evaluarManoAbierta(landmarks) {
   let dPunta = dist(muñeca.x, muñeca.y, puntaIndice.x, puntaIndice.y);
   let dBase = dist(muñeca.x, muñeca.y, baseIndice.x, baseIndice.y);
 
-  return dPunta > (dBase * 1.1);
+  return dPunta > (dBase * 1.02);
 }
 
 function onHandResults(results) {
@@ -365,7 +365,7 @@ function onHandResults(results) {
   estadoDosManosAbiertas = activarBarra;
 
   // Carga de barra para transiciones (Intro / Victoria / Derrota)
-  let juntandoPorTeclado = keyIsDown(UP_ARROW);
+  let juntandoPorTeclado = keyIsDown(DOWN_ARROW);
   let tiempoSuficiente = (millis() - tiempoInicioEscena > TIEMPO_MINIMO_PANTALLA);
 
   if ((activarBarra || juntandoPorTeclado) && tiempoSuficiente) {
