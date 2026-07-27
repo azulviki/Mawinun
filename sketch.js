@@ -31,6 +31,10 @@ const TIEMPO_MINIMO_PANTALLA = 1000; // 1 segundo de resguardo tras cambio de es
 let cantidadManosDetectadas = 0;
 let estadoDosManosAbiertas = false;
 
+// --- CONTROL DE PANTALLA COMPLETA Y WAKE LOCK (NUEVO) ---
+let wakeLock = null;
+let pantallaCompletaActivada = false;
+
 // --- VARIABLES MEDIA PIPE (Cámara) ---
 let video;
 let hands;
@@ -86,6 +90,16 @@ function setup() {
 
   calcularEscala();
 
+  // Solicitar que la pantalla no se apague al iniciar
+  solicitarWakeLock();
+
+  // Reactivar Wake Lock si la pestaña vuelve a tener foco
+  document.addEventListener("visibilitychange", async () => {
+    if (wakeLock !== null && document.visibilityState === "visible") {
+      await solicitarWakeLock();
+    }
+  });
+
   // ==========================================
   // MEDIA PIPE (cámara)
   // ==========================================
@@ -129,6 +143,43 @@ function setup() {
   // conectarWS();
 
   crearArboles();
+}
+
+// ==========================================
+// FUNCIONES DE PANTALLA COMPLETA Y WAKE LOCK
+// ==========================================
+async function solicitarWakeLock() {
+  try {
+    if ('wakeLock' in navigator) {
+      wakeLock = await navigator.wakeLock.request('screen');
+      console.log("Pantalla bloqueada para evitar que se apague");
+    }
+  } catch (err) {
+    console.log("No se pudo activar Screen Wake Lock:", err.message);
+  }
+}
+
+function touchStarted() {
+  // Activa pantalla completa y bloquea la suspensión al tocar por primera vez
+  activarPantallaCompleta();
+  solicitarWakeLock();
+  return false; 
+}
+
+function mousePressed() {
+  activarPantallaCompleta();
+  solicitarWakeLock();
+}
+
+function activarPantallaCompleta() {
+  let elem = document.documentElement;
+  if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+    if (elem.requestFullscreen) {
+      elem.requestFullscreen().catch(err => console.log(err));
+    } else if (elem.webkitRequestFullscreen) { /* Safari / iOS */
+      elem.webkitRequestFullscreen();
+    }
+  }
 }
 
 function calcularEscala() {
@@ -246,13 +297,13 @@ function draw() {
   }
 
   // --- HUD DE ESTADO (MediaPipe) ---
-  //fill(255, 255, 0);
-  //textAlign(RIGHT, TOP);
-  //textSize(13);
-  //text("Manos en cámara: " + cantidadManosDetectadas + " / 2", LW - 20, 15);
-  //text("¿2 Manos levantadas?: " + (estadoDosManosAbiertas ? "SÍ ✅" : "NO ❌"), LW - 20, 32);
+  fill(255, 255, 0);
+  textAlign(RIGHT, TOP);
+  textSize(13);
+  text("Manos en cámara: " + cantidadManosDetectadas + " / 2", LW - 20, 15);
+  text("¿2 Manos levantadas?: " + (estadoDosManosAbiertas ? "SÍ ✅" : "NO ❌"), LW - 20, 32);
 
-  //pop();
+  pop();
 }
 
 function dibujarCartelRotar() {
@@ -310,7 +361,7 @@ function onHandResults(results) {
   estadoDosManosAbiertas = activarBarra;
 
   // Carga de barra para transiciones (Intro / Victoria / Derrota)
-  let juntandoPorTeclado = keyIsDown(DOWN_ARROW);
+  let juntandoPorTeclado = keyIsDown(UP_ARROW);
   let tiempoSuficiente = (millis() - tiempoInicioEscena > TIEMPO_MINIMO_PANTALLA);
 
   if ((activarBarra || juntandoPorTeclado) && tiempoSuficiente) {
@@ -370,8 +421,12 @@ function pantallaIntro() {
 
   textStyle(NORMAL);
   textSize(18);
-  text("Movés la nube para posicionarla sobre los incendios.", LW / 2, LH * 0.36);
-  text("Abrí la mano para tirar agua. Cerrala en puño ✊ para cortar.", LW / 2, LH * 0.36 + 30);
+  text("Movés la nube para posicionarla sobre los incendios.", LW / 2, LH * 0.34);
+  text("Abrí la mano para tirar agua. Cerrala en puño ✊ para cortar.", LW / 2, LH * 0.34 + 28);
+
+  textSize(14);
+  fill(180, 220, 255);
+  text("💡 Tocá la pantalla una vez para activar Pantalla Completa", LW / 2, LH * 0.52);
 
   textSize(22);
   fill(255, 210, 0);
