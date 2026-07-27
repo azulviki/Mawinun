@@ -13,38 +13,35 @@ let radioNube;
 let tiempoLimite = 80;
 let tiempoRestante;
 let frameInicial;
-let framesPausados = 0; // frames "congelados" mientras el celular está en vertical
+let framesPausados = 0;
 
 // VARIABLES DE CONTROL (Compartidas)
 let manoAbierta = false;
 let manoAbiertaAnterior = false;
-let tiempoInicioEscena = 0; // momento en que arrancó la escena actual (INTRO / VICTORIA / DERROTA)
+let tiempoInicioEscena = 0;
 let últimoTouchTime = 0;
 
-// --- VARIABLES DE DETECCIÓN DE "AGITAR LA MANO" ---
-// Se usa en INTRO, VICTORIA y DERROTA para avanzar de pantalla.
-// No reemplaza a "manoAbierta" (que sigue sirviendo para regar en el juego).
-let nivelAgitacion = 0; // de 0 a 1, se llena agitando y se vacía si dejás de agitar
-const AGITACION_INCREMENTO = 0.045; // qué tan rápido se llena por frame agitando
-const AGITACION_DECAIMIENTO = 0.02; // qué tan rápido se vacía por frame sin agitar
-const AGITACION_UMBRAL_MOVIMIENTO = 0.35; // cuánto movimiento (en 500ms) cuenta como "agitar"
-const AGITACION_TIEMPO_MINIMO = 1200; // ms mínimos antes de poder avanzar (para poder leer el texto)
-let historialManoX = []; // últimas posiciones crudas de la muñeca, con timestamp
+// --- VARIABLES DE DETECCIÓN DE "2 MANOS ABIERTAS" ---
+let nivelJuntarManos = 0; // de 0 a 1
+const JUNTAR_INCREMENTO = 0.08; 
+const JUNTAR_DECAIMIENTO = 0.04; 
+
+const TIEMPO_MINIMO_PANTALLA = 1000; // 1 segundo de resguardo tras cambio de escena
+
+let cantidadManosDetectadas = 0;
+let estadoDosManosAbiertas = false;
 
 // --- VARIABLES MEDIA PIPE (Cámara) ---
 let video;
 let hands;
 
-// --- VARIABLES WEBSOCKET / OSC (Comentadas por si acaso) ---
-// let ws; // [WS] Descomentar si volvés a WebSockets
-// let celularManoX = 0; // [WS]
+// --- VARIABLES WEBSOCKET / OSC (Comentadas) ---
+// let ws;
+// let celularManoX = 0;
 
 // ==========================================
 // LIENZO LÓGICO FIJO 16:9 (responsive)
 // ==========================================
-// El juego siempre se dibuja como si la pantalla midiera LW x LH.
-// Ese "cuadro" se escala y centra dentro de la ventana real, con
-// barras negras si el dispositivo no es exactamente 16:9.
 const LW = 960;
 const LH = 540;
 let escalaJuego = 1;
@@ -59,7 +56,7 @@ let imgNubeAgua;
 let imgArbolApagado;
 let imgGota;
 let animacionFuego = [];
-let cantidadFotogramas = 4; // Cantidad de frames de fuego
+let cantidadFotogramas = 4;
 
 // --- CONTROLES DE TECLADO ---
 let velocidadNubeTeclado = 8;
@@ -81,17 +78,16 @@ function preload() {
 function setup() {
   createCanvas(windowWidth, windowHeight);
 
-  // Nube en coordenadas LÓGICAS (960x540), no en pixeles reales de pantalla
-  radioNube = 120; // cubre bien el ancho, dejando un margen chico para moverse
+  radioNube = 120;
   nubeX = LW / 2;
-  nubeY = LH * 0.26; // un poco más abajo, para dejarle más aire arriba
+  nubeY = LH * 0.26;
   frameInicial = frameCount;
   tiempoInicioEscena = millis();
 
   calcularEscala();
 
   // ==========================================
-  // MEDIA PIPE (cámara) — igual que la versión original
+  // MEDIA PIPE (cámara)
   // ==========================================
   video = createCapture({
     audio: false,
@@ -108,17 +104,19 @@ function setup() {
   });
 
   hands.setOptions({
-    maxNumHands: 1,
+    maxNumHands: 2,
     modelComplexity: 1,
-    minDetectionConfidence: 0.5,
-    minTrackingConfidence: 0.5
+    minDetectionConfidence: 0.4,
+    minTrackingConfidence: 0.4
   });
 
   hands.onResults(onHandResults);
 
   const camera = new Camera(video.elt, {
     onFrame: async () => {
-      await hands.send({ image: video.elt });
+      if (video.elt) {
+        await hands.send({ image: video.elt });
+      }
     },
     width: 640,
     height: 480
@@ -126,16 +124,13 @@ function setup() {
   camera.start();
 
   // ==========================================
-  // OPCIÓN B: WEBSOCKET / OSC (Comentado)
+  // WEBSOCKET / OSC (Comentado)
   // ==========================================
   // conectarWS();
 
   crearArboles();
 }
 
-// ==========================================
-// CÁLCULO DE ESCALA / LETTERBOX 16:9
-// ==========================================
 function calcularEscala() {
   enLandscape = windowWidth >= windowHeight;
   escalaJuego = min(windowWidth / LW, windowHeight / LH);
@@ -148,9 +143,6 @@ function windowResized() {
   calcularEscala();
 }
 
-// ==========================================
-// CREAR ÁRBOLES (en coordenadas lógicas)
-// ==========================================
 function crearArboles() {
   arboles = [];
   for (let i = 0; i < cantidadArboles; i++) {
@@ -163,9 +155,9 @@ function crearArboles() {
 }
 
 // ==========================================
-// FUNCIONES DE CONEXIÓN WEBSOCKET (Guardadas)
+// CONEXIÓN Y EVENTOS WEBSOCKET / OSC (Comentados)
 // ==========================================
-/* // [WS] Descomentar todo este bloque si volvés a OSC
+/*
 function conectarWS() {
   ws = new WebSocket("ws://localhost:3333");
 
@@ -204,30 +196,25 @@ function oscReceived(address, value) {
 */
 
 function draw() {
-  background(0); // barras negras del letterbox
+  background(0);
 
-  // CONTROL INMEDIATO DE AUSENCIA DE MANO (Watchdog) — corre siempre,
-  // aunque esté en vertical, para que no quede "pegado" al volver.
-  if (millis() - últimoTouchTime > 100) {
+  // Reseteo si la cámara pierde señal por un tiempo
+  if (millis() - últimoTouchTime > 500) {
     manoAbierta = false;
+    estadoDosManosAbiertas = false;
   }
 
-  // Si el celular está en vertical: pausar y pedir que lo giren
   if (!enLandscape) {
     if (!estabaPausadoPorRotacion) estabaPausadoPorRotacion = true;
     framesPausados++;
     dibujarCartelRotar();
-    manoAbiertaAnterior = manoAbierta;
     return;
   } else if (estabaPausadoPorRotacion) {
     estabaPausadoPorRotacion = false;
   }
 
   actualizarControlesTeclado();
-  actualizarAgitacion();
 
-  // A partir de acá, todo se dibuja en el lienzo lógico 960x540,
-  // escalado y centrado dentro de la ventana real.
   push();
   translate(offsetX, offsetY);
   scale(escalaJuego);
@@ -250,17 +237,22 @@ function draw() {
     actualizarJuego();
   }
   else if (escena === "VICTORIA") {
-    pantallaFinal("¡BOSQUE A SALVO!", color(0, 255, 100), color(0));
+    pantallaFinal("¡BOSQUE A SALVO!", color(10, 80, 40), color(255));
     intentarReiniciar();
   }
   else if (escena === "DERROTA") {
-    pantallaFinal("EL FUEGO CONSUMIÓ EL BOSQUE", color(255, 50, 50), color(255));
+    pantallaFinal("EL FUEGO CONSUMIÓ EL BOSQUE", color(100, 20, 20), color(255));
     intentarReiniciar();
   }
 
-  pop();
+  // --- HUD DE ESTADO (MediaPipe) ---
+  //fill(255, 255, 0);
+  //textAlign(RIGHT, TOP);
+  //textSize(13);
+  //text("Manos en cámara: " + cantidadManosDetectadas + " / 2", LW - 20, 15);
+  //text("¿2 Manos levantadas?: " + (estadoDosManosAbiertas ? "SÍ ✅" : "NO ❌"), LW - 20, 32);
 
-  manoAbiertaAnterior = manoAbierta;
+  //pop();
 }
 
 function dibujarCartelRotar() {
@@ -268,36 +260,63 @@ function dibujarCartelRotar() {
   translate(width / 2, height / 2);
   fill(255);
   textAlign(CENTER, CENTER);
-  textSize(width > 600 ? 26 : 18);
-  text("📱 Girá el celular", 0, -10);
-  textSize(width > 600 ? 16 : 12);
-  text("Usalo en horizontal para jugar", 0, 20);
+  textSize(22);
+  text("📱 Girá el celular a horizontal", 0, 0);
   pop();
 }
 
-// --- CALLBACK RESULTADOS CÁMARA (MediaPipe) ---
+function evaluarManoAbierta(landmarks) {
+  let muñeca = landmarks[0];
+  let puntaIndice = landmarks[8];
+  let baseIndice = landmarks[5];
+  
+  let dPunta = dist(muñeca.x, muñeca.y, puntaIndice.x, puntaIndice.y);
+  let dBase = dist(muñeca.x, muñeca.y, baseIndice.x, baseIndice.y);
+
+  return dPunta > (dBase * 1.1);
+}
+
 function onHandResults(results) {
+  let activarBarra = false;
+  
   if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-    let puntosMano = results.multiHandLandmarks[0];
+    cantidadManosDetectadas = results.multiHandLandmarks.length;
 
-    let xMuñeca = 1 - puntosMano[0].x;
-    nubeX = lerp(nubeX, map(xMuñeca, 0.2, 0.8, radioNube, LW - radioNube), 0.2);
+    // Control de nube mediante primera mano
+    let mano1 = results.multiHandLandmarks[0];
+    let xMuñeca1 = 1 - mano1[0].x;
+    
+    nubeX = lerp(nubeX, map(xMuñeca1, 0.15, 0.85, radioNube, LW - radioNube), 0.25);
+    let mano1Abierta = evaluarManoAbierta(mano1);
+    manoAbierta = mano1Abierta;
 
-    // Guardamos la posición cruda (sin lerp) para poder medir agitación real.
-    historialManoX.push({ x: xMuñeca, t: millis() });
-    if (historialManoX.length > 90) historialManoX.shift();
+    // Detección de 2 manos levantadas
+    if (cantidadManosDetectadas >= 2) {
+      let mano2 = results.multiHandLandmarks[1];
+      let mano2Abierta = evaluarManoAbierta(mano2);
 
-    let pulgar = puntosMano[4];
-    let indice = puntosMano[8];
-    let d = dist(pulgar.x, pulgar.y, indice.x, indice.y);
-
-    if (d > 0.08) {
-      manoAbierta = true;
-    } else {
-      manoAbierta = false;
+      if (mano1Abierta && mano2Abierta) {
+        activarBarra = true;
+      }
     }
 
     últimoTouchTime = millis();
+  } else {
+    cantidadManosDetectadas = 0;
+    manoAbierta = false;
+    activarBarra = false;
+  }
+
+  estadoDosManosAbiertas = activarBarra;
+
+  // Carga de barra para transiciones (Intro / Victoria / Derrota)
+  let juntandoPorTeclado = keyIsDown(DOWN_ARROW);
+  let tiempoSuficiente = (millis() - tiempoInicioEscena > TIEMPO_MINIMO_PANTALLA);
+
+  if ((activarBarra || juntandoPorTeclado) && tiempoSuficiente) {
+    nivelJuntarManos = min(1, nivelJuntarManos + JUNTAR_INCREMENTO);
+  } else {
+    nivelJuntarManos = max(0, nivelJuntarManos - JUNTAR_DECAIMIENTO);
   }
 }
 
@@ -312,65 +331,34 @@ function actualizarControlesTeclado() {
   }
 }
 
-// ==========================================
-// DETECCIÓN DE "AGITAR LA MANO"
-// Se usa para avanzar en INTRO / VICTORIA / DERROTA.
-// Requiere movimiento real de la mano (no simplemente tenerla abierta),
-// así el mensaje de cada pantalla se alcanza a leer.
-// ==========================================
-function actualizarAgitacion() {
-  let ahora = millis();
-
-  // Nos quedamos solo con los puntos de los últimos 500ms
-  historialManoX = historialManoX.filter(p => ahora - p.t < 500);
-
-  let movimientoTotal = 0;
-  for (let i = 1; i < historialManoX.length; i++) {
-    movimientoTotal += abs(historialManoX[i].x - historialManoX[i - 1].x);
-  }
-
-  let agitandoPorCamara = movimientoTotal > AGITACION_UMBRAL_MOVIMIENTO;
-  // Se mantiene la tecla DOWN_ARROW tal cual funcionaba (abre la mano);
-  // acá además la reutilizamos para poder probar la agitación sin cámara.
-  let agitandoPorTeclado = keyIsDown(DOWN_ARROW);
-
-  if (agitandoPorCamara || agitandoPorTeclado) {
-    nivelAgitacion = min(1, nivelAgitacion + AGITACION_INCREMENTO);
-  } else {
-    nivelAgitacion = max(0, nivelAgitacion - AGITACION_DECAIMIENTO);
-  }
+function accionCompletada() {
+  return (millis() - tiempoInicioEscena > TIEMPO_MINIMO_PANTALLA) && nivelJuntarManos >= 0.95;
 }
 
-function agitacionCompleta() {
-  return (millis() - tiempoInicioEscena > AGITACION_TIEMPO_MINIMO) && nivelAgitacion >= 1;
-}
-
-function dibujarBarraAgitacion(x, y, w, h) {
+function dibujarBarraProgreso(x, y, w, h) {
   push();
   noStroke();
-  fill(255, 255, 255, 60);
+  fill(255, 255, 255, 50);
   rect(x, y, w, h, h / 2);
   fill(80, 220, 120);
-  rect(x, y, w * nivelAgitacion, h, h / 2);
+  rect(x, y, w * nivelJuntarManos, h, h / 2);
   pop();
 }
 
 function cambiarEscena(nuevaEscena) {
   escena = nuevaEscena;
   tiempoInicioEscena = millis();
-  nivelAgitacion = 0;
-  historialManoX = [];
+  nivelJuntarManos = 0;
+  estadoDosManosAbiertas = false;
+  manoAbierta = false;
 }
 
 function intentarReiniciar() {
-  if (agitacionCompleta()) {
+  if (accionCompletada()) {
     reiniciarJuego();
   }
 }
 
-// ==========================================
-// PANTALLA DE INTRODUCCIÓN
-// ==========================================
 function pantallaIntro() {
   background(15, 25, 35);
   textAlign(CENTER, CENTER);
@@ -378,21 +366,20 @@ function pantallaIntro() {
   fill(255);
   textStyle(BOLD);
   textSize(42);
-  text("🔥 SALVÁ EL BOSQUE 🔥", LW / 2, LH * 0.16);
+  text("🔥 SALVÁ EL BOSQUE 🔥", LW / 2, LH * 0.18);
 
   textStyle(NORMAL);
-  textSize(20);
-  text("Movés la nube con la mano para llevarla arriba de los árboles en llamas.", LW / 2, LH * 0.34);
-  text("Abrí la mano (separá el pulgar del índice) para que llueva y apagar el fuego.", LW / 2, LH * 0.34 + 32);
-  text("Apagá todos los árboles antes de que se acabe el tiempo.", LW / 2, LH * 0.34 + 64);
+  textSize(18);
+  text("Movés la nube para posicionarla sobre los incendios.", LW / 2, LH * 0.36);
+  text("Abrí la mano para tirar agua. Cerrala en puño ✊ para cortar.", LW / 2, LH * 0.36 + 30);
 
-  textSize(24);
+  textSize(22);
   fill(255, 210, 0);
-  text("¡Agitá la mano MUY FUERTE para empezar!", LW / 2, LH * 0.74);
+  text("¡Levantá las DOS MANOS ABIERTAS (🙌) para empezar!", LW / 2, LH * 0.70);
 
-  dibujarBarraAgitacion(LW / 2 - 150, LH * 0.82, 300, 22);
+  dibujarBarraProgreso(LW / 2 - 150, LH * 0.78, 300, 22);
 
-  if (agitacionCompleta()) {
+  if (accionCompletada()) {
     reiniciarJuego();
   }
 }
@@ -407,19 +394,15 @@ function actualizarJuego() {
     }
   }
 
-  // DIBUJAR NUBE (Proporcional)
   push();
   imageMode(CENTER);
   let anchoNubeObjetivo = radioNube * 2;
-
   let imagenActual = manoAbierta ? imgNubeAgua : imgNubeGris;
-
   let altoNubeProporcional = (anchoNubeObjetivo * imagenActual.height) / imagenActual.width;
 
   image(imagenActual, nubeX, nubeY, anchoNubeObjetivo, altoNubeProporcional);
   pop();
 
-  // ACTUALIZAR GOTAS Y ÁRBOLES
   for (let i = gotas.length - 1; i >= 0; i--) {
     gotas[i].actualizar();
     gotas[i].mostrar();
@@ -429,7 +412,6 @@ function actualizarJuego() {
     if (gotas[i].fueraDePantalla()) gotas.splice(i, 1);
   }
 
-  // DIBUJAR ÁRBOLES (Ordenados de atrás hacia adelante)
   arboles.sort((a, b) => a.y - b.y);
 
   let incendiosActivos = 0;
@@ -450,15 +432,15 @@ function pantallaFinal(mensaje, colorFondo, colorTexto) {
   textAlign(CENTER, CENTER);
   fill(colorTexto);
 
-  textSize(48);
+  textSize(44);
   textStyle(BOLD);
   text(mensaje, LW / 2, LH / 2 - 50);
 
   textStyle(NORMAL);
-  textSize(22);
-  text("Agitá la mano MUY FUERTE para volver a jugar", LW / 2, LH / 2 + 20);
+  textSize(20);
+  text("Levantá las DOS MANOS ABIERTAS (🙌) para volver a jugar", LW / 2, LH / 2 + 15);
 
-  dibujarBarraAgitacion(LW / 2 - 150, LH / 2 + 55, 300, 20);
+  dibujarBarraProgreso(LW / 2 - 150, LH / 2 + 55, 300, 22);
 }
 
 function reiniciarJuego() {
@@ -471,15 +453,12 @@ function reiniciarJuego() {
   tiempoRestante = tiempoLimite;
 
   tiempoInicioEscena = millis();
-  nivelAgitacion = 0;
-  historialManoX = [];
+  nivelJuntarManos = 0;
+  estadoDosManosAbiertas = false;
 
   crearArboles();
 }
 
-// ==========================================
-// CLASES ÁRBOL (CON STOP MOTION RESPONSIVO) Y GOTA
-// ==========================================
 class Arbol {
   constructor(x, y) {
     this.x = x;
