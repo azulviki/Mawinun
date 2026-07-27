@@ -31,9 +31,8 @@ const TIEMPO_MINIMO_PANTALLA = 1000; // 1 segundo de resguardo tras cambio de es
 let cantidadManosDetectadas = 0;
 let estadoDosManosAbiertas = false;
 
-// --- CONTROL DE PANTALLA COMPLETA Y WAKE LOCK (NUEVO) ---
+// --- CONTROL DE PANTALLA COMPLETA Y WAKE LOCK ---
 let wakeLock = null;
-let pantallaCompletaActivada = false;
 
 // --- VARIABLES MEDIA PIPE (Cámara) ---
 let video;
@@ -55,6 +54,9 @@ let enLandscape = true;
 let estabaPausadoPorRotacion = false;
 
 // --- VARIABLES PARA LAS IMÁGENES y ANIMACIÓN ---
+let imgPortada;
+let imgVictoria; // <--- NUEVA IMAGEN VICTORIA
+let imgDerrota;  // <--- NUEVA IMAGEN DERROTA
 let imgNubeGris;
 let imgNubeAgua;
 let imgArbolApagado;
@@ -69,6 +71,9 @@ let velocidadNubeTeclado = 8;
 // CARGA DE MATERIAL GRÁFICO
 // ==========================================
 function preload() {
+  imgPortada = loadImage('assets/portada.png');
+  imgVictoria = loadImage('assets/victoria.png'); // <--- Cargamos victoria.png
+  imgDerrota = loadImage('assets/derrota.png');   // <--- Cargamos derrota.png
   imgNubeGris = loadImage('assets/nube_gris.png');
   imgNubeAgua = loadImage('assets/nube_agua.png');
   imgArbolApagado = loadImage('assets/arbol_apagado.png');
@@ -160,7 +165,6 @@ async function solicitarWakeLock() {
 }
 
 function touchStarted() {
-  // Activa pantalla completa y bloquea la suspensión al tocar por primera vez
   activarPantallaCompleta();
   solicitarWakeLock();
   return false; 
@@ -288,22 +292,22 @@ function draw() {
     actualizarJuego();
   }
   else if (escena === "VICTORIA") {
-    pantallaFinal("¡BOSQUE A SALVO!", color(10, 80, 40), color(255));
+    pantallaFinal(imgVictoria);
     intentarReiniciar();
   }
   else if (escena === "DERROTA") {
-    pantallaFinal("EL FUEGO CONSUMIÓ EL BOSQUE", color(100, 20, 20), color(255));
+    pantallaFinal(imgDerrota);
     intentarReiniciar();
   }
 
   // --- HUD DE ESTADO (MediaPipe) ---
-  fill(255, 255, 0);
-  textAlign(RIGHT, TOP);
-  textSize(13);
-  text("Manos en cámara: " + cantidadManosDetectadas + " / 2", LW - 20, 15);
-  text("¿2 Manos levantadas?: " + (estadoDosManosAbiertas ? "SÍ ✅" : "NO ❌"), LW - 20, 32);
+  //fill(255, 255, 0);
+  //textAlign(RIGHT, TOP);
+  //textSize(13);
+  //text("Manos en cámara: " + cantidadManosDetectadas + " / 2", LW - 20, 15);
+  //text("¿2 Manos levantadas?: " + (estadoDosManosAbiertas ? "SÍ ✅" : "NO ❌"), LW - 20, 32);
 
-  pop();
+  //pop();
 }
 
 function dibujarCartelRotar() {
@@ -411,28 +415,15 @@ function intentarReiniciar() {
 }
 
 function pantallaIntro() {
-  background(15, 25, 35);
+  image(imgPortada, 0, 0, LW, LH);
+  dibujarBarraProgreso(LW / 2 - 150, LH * 0.85, 300, 22);
+
+  push();
   textAlign(CENTER, CENTER);
-
-  fill(255);
-  textStyle(BOLD);
-  textSize(42);
-  text("🔥 SALVÁ EL BOSQUE 🔥", LW / 2, LH * 0.18);
-
-  textStyle(NORMAL);
-  textSize(18);
-  text("Movés la nube para posicionarla sobre los incendios.", LW / 2, LH * 0.34);
-  text("Abrí la mano para tirar agua. Cerrala en puño ✊ para cortar.", LW / 2, LH * 0.34 + 28);
-
-  textSize(14);
-  fill(180, 220, 255);
-  text("💡 Tocá la pantalla una vez para activar Pantalla Completa", LW / 2, LH * 0.52);
-
-  textSize(22);
-  fill(255, 210, 0);
-  text("¡Levantá las DOS MANOS ABIERTAS (🙌) para empezar!", LW / 2, LH * 0.70);
-
-  dibujarBarraProgreso(LW / 2 - 150, LH * 0.78, 300, 22);
+  textSize(13);
+  fill(255, 255, 255, 180);
+  text("💡 Tocá la pantalla una vez para activar Pantalla Completa", LW / 2, LH * 0.93);
+  pop();
 
   if (accionCompletada()) {
     reiniciarJuego();
@@ -482,20 +473,15 @@ function actualizarJuego() {
   text("Fuegos activos: " + incendiosActivos, 20, 38);
 }
 
-function pantallaFinal(mensaje, colorFondo, colorTexto) {
-  background(colorFondo);
-  textAlign(CENTER, CENTER);
-  fill(colorTexto);
+// ==========================================
+// PANTALLAS FINALES CON IMÁGENES PERSONALIZADAS
+// ==========================================
+function pantallaFinal(imagenFinal) {
+  // Dibuja la imagen de victoria o derrota
+  image(imagenFinal, 0, 0, LW, LH);
 
-  textSize(44);
-  textStyle(BOLD);
-  text(mensaje, LW / 2, LH / 2 - 50);
-
-  textStyle(NORMAL);
-  textSize(20);
-  text("Levantá las DOS MANOS ABIERTAS (🙌) para volver a jugar", LW / 2, LH / 2 + 15);
-
-  dibujarBarraProgreso(LW / 2 - 150, LH / 2 + 55, 300, 22);
+  // Barra de progreso interactiva para volver a jugar
+  dibujarBarraProgreso(LW / 2 - 150, LH * 0.85, 300, 22);
 }
 
 function reiniciarJuego() {
