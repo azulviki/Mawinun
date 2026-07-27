@@ -9,6 +9,9 @@ let nubeX;
 let nubeY;
 let radioNube;
 
+//Las briznas del pasto
+let briznasPasto = [];
+
 // MECÁNICA DE TIEMPO
 let tiempoLimite = 85;
 let tiempoRestante;
@@ -103,10 +106,11 @@ function setup() {
     if (wakeLock !== null && document.visibilityState === "visible") {
       await solicitarWakeLock();
     }
+
+    generarPasto();
   });
 
-
- // ==========================================
+   // ==========================================
   // MEDIA PIPE (Cámara optimizada para móviles)
   // ==========================================
   video = createCapture({
@@ -148,6 +152,22 @@ function setup() {
   // conectarWS();
 
   crearArboles();
+}
+
+  // Función para generar las posiciones del pasto
+  function generarPasto() {
+  briznasPasto = [];
+  let cantidadBriznas = 600; 
+  
+  for (let i = 0; i < cantidadBriznas; i++) {
+    briznasPasto.push({
+      x: random(0, LW),
+      y: random(LH * 0.66, LH - 10), // Solo dentro de la zona del suelo
+      largo: random(1, 3),
+      inclinacion: random(-3, 3), // Pequeño ángulo aleatorio
+      tono: color(random(45, 65), random(75, 95), random(50, 70)) // Variantes de verde
+    });
+  }
 }
 
 // ==========================================
@@ -249,6 +269,70 @@ function oscReceived(address, value) {
   }
 }
 */
+
+// ==========================================
+// FONDO ILUSTRADO: DEGRADÉ + HORIZONTE CON COLINAS
+// ==========================================
+function dibujarFondoHorizonte() {
+  push();
+  noStroke();
+
+  // 1. DEGRADÉ DE CIELO (Azul cálido arriba -> Dorado suave al horizonte)
+  let cArriba = color(40, 80, 140);   // Azul atardecer/bosque
+  let cHorizonte = color(230, 100, 100); // Tono cálido de horizonte
+
+  for (let y = 0; y < LH * 0.65; y += 4) {
+    let inter = map(y, 0, LH * 0.65, 0, 1);
+    let c = lerpColor(cArriba, cHorizonte, inter);
+    fill(c);
+    rect(0, y, LW, 5);
+  }
+
+  // 2. MONTAÑAS/COLINAS LEJANAS (Capa 1 - Silueta suave suave)
+  fill(80, 95, 90, 100);
+  beginShape();
+  vertex(0, LH * 0.65);
+  bezierVertex(LW * 0.2, LH * 0.52, LW * 0.4, LH * 0.62, LW * 0.6, LH * 0.55);
+  bezierVertex(LW * 0.75, LH * 0.50, LW * 0.88, LH * 0.62, LW, LH * 0.58);
+  vertex(LW, LH);
+  vertex(0, LH);
+  endShape(CLOSE);
+
+  // 3. COLINAS INTERMEDIAS (Capa 2 - Más verde/bosque apagado)
+  fill(45, 75, 65);
+  beginShape();
+  vertex(0, LH * 0.62);
+  bezierVertex(LW * 0.25, LH * 0.68, LW * 0.45, LH * 0.58, LW * 0.7, LH * 0.64);
+  bezierVertex(LW * 0.85, LH * 0.67, LW * 0.95, LH * 0.60, LW, LH * 0.63);
+  vertex(LW, LH);
+  vertex(0, LH);
+  endShape(CLOSE);
+
+  // 4. SUELO / PRADERA (Donde están los árboles)
+  fill(35, 55, 45);
+  rect(0, LH * 0.65, LW, LH * 0.35);
+
+  // Línea sutil de luz sobre la pradera
+  stroke(180, 190, 120, 100);
+  strokeWeight(2);
+  line(0, LH * 0.65, LW, LH * 0.65);
+
+  // ==========================================
+  // 5. TEXTURA DE BASTONCITOS DE PASTO
+  // ==========================================
+  strokeCap(ROUND);
+  strokeWeight(1); // Grosor del bastoncito
+  
+  for (let i = 0; i < briznasPasto.length; i++) {
+    let b = briznasPasto[i];
+    stroke(b.tono);
+    // Dibujamos un pequeño bastoncito vertical/inclinado
+    line(b.x, b.y, b.x + b.inclinacion, b.y - b.largo);
+  }
+
+
+  pop();
+}
 
 function draw() {
   background(0);
@@ -434,6 +518,8 @@ function pantallaIntro() {
 }
 
 function actualizarJuego() {
+
+  dibujarFondoHorizonte();
   let segundosTranscurridos = floor((millis() - tiempoInicioJuego - tiempoAcumuladoPausa) / 1000);
   tiempoRestante = tiempoLimite - segundosTranscurridos;
 
