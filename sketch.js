@@ -10,7 +10,7 @@ let nubeY;
 let radioNube;
 
 // MECÁNICA DE TIEMPO
-let tiempoLimite = 50;
+let tiempoLimite = 60;
 let tiempoRestante;
 let tiempoInicioJuego = 0;
 let framesPausados = 0;
