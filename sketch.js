@@ -17,6 +17,8 @@ let tiempoLimite = 85;
 let tiempoRestante;
 let tiempoInicioJuego = 0;
 let framesPausados = 0;
+let tiempoInicioPausa = 0;      
+let tiempoAcumuladoPausa = 0;   
 
 // VARIABLES DE CONTROL (Compartidas)
 let manoAbierta = false;
@@ -41,7 +43,7 @@ let wakeLock = null;
 let video;
 let hands;
 
-// --- VARIABLES WEBSOCKET / OSC (Comentadas) ---
+// --- VARIABLES WEBSOCKET / OSC  ---
 // let ws;
 // let celularManoX = 0;
 
@@ -58,8 +60,8 @@ let estabaPausadoPorRotacion = false;
 
 // --- VARIABLES PARA LAS IMÁGENES y ANIMACIÓN ---
 let imgPortada;
-let imgVictoria; // <--- NUEVA IMAGEN VICTORIA
-let imgDerrota;  // <--- NUEVA IMAGEN DERROTA
+let imgVictoria; 
+let imgDerrota;  
 let imgNubeGris;
 let imgNubeAgua;
 let imgArbolApagado;
@@ -75,8 +77,8 @@ let velocidadNubeTeclado = 8;
 // ==========================================
 function preload() {
   imgPortada = loadImage('assets/portada.png');
-  imgVictoria = loadImage('assets/victoria.png'); // <--- Cargamos victoria.png
-  imgDerrota = loadImage('assets/derrota.png');   // <--- Cargamos derrota.png
+  imgVictoria = loadImage('assets/victoria.png'); 
+  imgDerrota = loadImage('assets/derrota.png');   
   imgNubeGris = loadImage('assets/nube_gris.png');
   imgNubeAgua = loadImage('assets/nube_agua.png');
   imgArbolApagado = loadImage('assets/arbol_apagado.png');
@@ -117,10 +119,16 @@ function setup() {
     audio: false,
     video: {
       facingMode: "user",
-      width: { ideal: 320 },  // <--- Bajamos a 320px para no saturar la CPU del celu
+      width: { ideal: 320 },  
       height: { ideal: 240 }
     }
   });
+
+  // Fuerza atributos requeridos por iOS/Android para reproducir video sin congelar la pantalla
+  if (video.elt) {
+    video.elt.setAttribute('playsinline', '');
+    video.elt.setAttribute('muted', '');
+  }
   video.hide();
 
   hands = new Hands({
@@ -129,8 +137,8 @@ function setup() {
 
   hands.setOptions({
     maxNumHands: 2,
-    modelComplexity: 0,        // <--- CAMBIO CLAVE: 0 = Lite (Súper veloz en celulares)
-    minDetectionConfidence: 0.3, // <--- Más permisivo si hay sombra o baja luz
+    modelComplexity: 0,       
+    minDetectionConfidence: 0.3, 
     minTrackingConfidence: 0.3
   });
 
@@ -330,7 +338,6 @@ function dibujarFondoHorizonte() {
     line(b.x, b.y, b.x + b.inclinacion, b.y - b.largo);
   }
 
-
   pop();
 }
 
@@ -394,7 +401,7 @@ function draw() {
   //text("Manos en cámara: " + cantidadManosDetectadas + " / 2", LW - 20, 15);
   //text("¿2 Manos levantadas?: " + (estadoDosManosAbiertas ? "SÍ ✅" : "NO ❌"), LW - 20, 32);
 
-  //pop();
+  pop();
 }
 
 function dibujarCartelRotar() {
