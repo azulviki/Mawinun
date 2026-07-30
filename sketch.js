@@ -624,7 +624,7 @@ class Arbol {
 
   recibirAgua() {
     if (this.estado === "FUEGO") {
-      this.saludFuego -= 8;
+      this.saludFuego -= 25;
       if (this.saludFuego <= 0) this.estado = "APAGADO";
     }
   }
@@ -649,7 +649,7 @@ class Gota {
   chequearColision(arbol) {
     if (arbol.estado === "FUEGO") {
       let d = dist(this.x, this.y, arbol.x, arbol.y - arbol.tam / 2);
-      if (d < arbol.tam / 2) {
+      if (d < arbol.tam * 0.7) {
         arbol.recibirAgua();
         this.y = LH + 100;
       }
