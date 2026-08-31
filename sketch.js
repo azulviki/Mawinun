@@ -13,7 +13,7 @@ let radioNube;
 let briznasPasto = [];
 
 // MECÁNICA DE TIEMPO
-let tiempoLimite = 85;
+let tiempoLimite = 60;
 let tiempoRestante;
 let tiempoInicioJuego = 0;
 let framesPausados = 0;
