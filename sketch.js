@@ -5,6 +5,9 @@ let gotas = [];
 let cantidadArboles = 40;
 let modoJuego = "SENCILLO"; // "SENCILLO" o "COMPLEJO"
 
+const DISTANCIA_MINIMA_ARBOLES = 55; // píxeles mínimos entre centros de árboles
+const INTENTOS_MAXIMOS_POSICION = 30; // intentos antes de resignarse y colocarlo igual
+
 // Control de la Nube
 let nubeX;
 let nubeY;
@@ -232,12 +235,36 @@ function windowResized() {
 function crearArboles() {
   arboles = [];
   for (let i = 0; i < cantidadArboles; i++) {
-    let x = random(radioNube / 2, LW - radioNube / 2); 
-    let y = random(LH * 0.68, LH - 60);
-    let nuevoArbol = new Arbol(x, y);
+    let posicion = generarPosicionValida();
+    let nuevoArbol = new Arbol(posicion.x, posicion.y);
     nuevoArbol.estado = "FUEGO";
     arboles.push(nuevoArbol);
   }
+}
+
+function generarPosicionValida() {
+  let intentos = 0;
+  let x, y;
+  let posicionValida = false;
+
+  while (!posicionValida && intentos < INTENTOS_MAXIMOS_POSICION) {
+    x = random(radioNube / 2, LW - radioNube / 2);
+    y = random(LH * 0.68, LH - 60);
+
+    posicionValida = true;
+    for (let i = 0; i < arboles.length; i++) {
+      let d = dist(x, y, arboles[i].x, arboles[i].y);
+      if (d < DISTANCIA_MINIMA_ARBOLES) {
+        posicionValida = false;
+        break;
+      }
+    }
+    intentos++;
+  }
+
+  // Si tras varios intentos no encontró lugar libre, lo coloca igual
+  // (evita loops infinitos o árboles faltantes si el canvas está muy lleno)
+  return { x: x, y: y };
 }
 
 // ==========================================
