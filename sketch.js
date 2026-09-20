@@ -363,6 +363,7 @@ function draw() {
   }
 
   actualizarControlesTeclado();
+  actualizarBarraProgreso();
 
   push();
   translate(offsetX, offsetY);
@@ -431,7 +432,6 @@ function onHandResults(results) {
   if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
     cantidadManosDetectadas = results.multiHandLandmarks.length;
 
-    // Control de nube mediante primera mano
     let mano1 = results.multiHandLandmarks[0];
     let xMuñeca1 = 1 - mano1[0].x;
     
@@ -439,11 +439,9 @@ function onHandResults(results) {
     let mano1Abierta = evaluarManoAbierta(mano1);
     manoAbierta = mano1Abierta;
 
-    // Detección de 2 manos levantadas
     if (cantidadManosDetectadas >= 2) {
       let mano2 = results.multiHandLandmarks[1];
       let mano2Abierta = evaluarManoAbierta(mano2);
-
       if (mano1Abierta && mano2Abierta) {
         activarBarra = true;
       }
@@ -457,17 +455,19 @@ function onHandResults(results) {
   }
 
   estadoDosManosAbiertas = activarBarra;
+}
 
-  // Carga de barra para transiciones (Intro / Victoria / Derrota)
+function actualizarBarraProgreso() {
   let juntandoPorTeclado = keyIsDown(DOWN_ARROW);
   let tiempoSuficiente = (millis() - tiempoInicioEscena > TIEMPO_MINIMO_PANTALLA);
 
-  if ((activarBarra || juntandoPorTeclado) && tiempoSuficiente) {
+  if ((estadoDosManosAbiertas || juntandoPorTeclado) && tiempoSuficiente) {
     nivelJuntarManos = min(1, nivelJuntarManos + JUNTAR_INCREMENTO);
   } else {
     nivelJuntarManos = max(0, nivelJuntarManos - JUNTAR_DECAIMIENTO);
   }
 }
+
 
 function actualizarControlesTeclado() {
   if (keyIsDown(LEFT_ARROW))  nubeX -= velocidadNubeTeclado;
