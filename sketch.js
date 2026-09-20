@@ -516,14 +516,44 @@ function intentarReiniciar() {
 
 function pantallaIntro() {
   image(imgPortada, 0, 0, LW, LH);
-  dibujarBarraProgreso(LW / 2 - 150, LH * 0.85, 300, 22);
 
+  // Selección de dificultad moviendo la nube (mano o flechas) a izquierda/derecha
+  modoJuego = (nubeX < LW / 2) ? "SENCILLO" : "COMPLEJO";
+
+  // --- BOTONES DE MODO (dibujados en código, en el espacio libre bajo el texto) ---
   push();
+  rectMode(CENTER);
   textAlign(CENTER, CENTER);
-  textSize(13);
-  fill(255, 255, 255, 180);
-  text("💡 Tocá la pantalla una vez para activar Pantalla Completa", LW / 2, LH * 0.93);
+  textSize(18);
+
+  let yBotones = LH * 0.90; // 486 aprox, en el margen libre bajo el asterisco
+  let anchoBoton = 190;
+  let altoBoton = 46;
+  let xSencillo = LW * 0.25; // 240
+  let xComplejo = LW * 0.75; // 720
+
+  // Botón SENCILLO
+  let activoSencillo = (modoJuego === "SENCILLO");
+  stroke(activoSencillo ? color(80, 220, 120) : color(255, 255, 255, 120));
+  strokeWeight(activoSencillo ? 4 : 2);
+  fill(activoSencillo ? color(20, 90, 50, 220) : color(0, 0, 0, 120));
+  rect(xSencillo, yBotones, anchoBoton, altoBoton, 10);
+  noStroke();
+  fill(activoSencillo ? color(150, 255, 180) : color(255, 255, 255, 180));
+  text("🌿 SENCILLO", xSencillo, yBotones);
+
+  // Botón COMPLEJO
+  let activoComplejo = (modoJuego === "COMPLEJO");
+  stroke(activoComplejo ? color(220, 90, 80) : color(255, 255, 255, 120));
+  strokeWeight(activoComplejo ? 4 : 2);
+  fill(activoComplejo ? color(100, 30, 25, 220) : color(0, 0, 0, 120));
+  rect(xComplejo, yBotones, anchoBoton, altoBoton, 10);
+  noStroke();
+  fill(activoComplejo ? color(255, 160, 140) : color(255, 255, 255, 180));
+  text("🔥 COMPLEJO", xComplejo, yBotones);
   pop();
+
+  dibujarBarraProgreso(LW / 2 - 150, LH * 0.97, 300, 14);
 
   if (accionCompletada()) {
     reiniciarJuego();
