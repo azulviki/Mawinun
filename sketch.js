@@ -39,7 +39,7 @@ const TIEMPO_MINIMO_PANTALLA = 1000; // 1 segundo de resguardo tras cambio de es
 
 //MODO COMPLEJO
 const PROBABILIDAD_REENCENDIDO = 0.0015; // Una vez cada pocos segundos, por árbol apagado
-const MAX_REENCENDIDOS = 5; // Máximo de veces que un árbol puede reencenderse
+const MAX_REENCENDIDOS = 3; // Máximo de veces que un árbol puede reencenderse
 
 let cantidadManosDetectadas = 0;
 let estadoDosManosAbiertas = false;
@@ -546,44 +546,45 @@ function intentarReiniciar() {
   }
 }
 
-function pantallaIntro() {
-  image(imgPortada, 0, 0, LW, LH);
-
-  // Selección de dificultad moviendo la nube (mano o flechas) a izquierda/derecha
+function dibujarBotonesModo(y) {
   modoJuego = (nubeX < LW / 2) ? "SENCILLO" : "COMPLEJO";
 
-  // --- BOTONES DE MODO (dibujados en código, en el espacio libre bajo el texto) ---
   push();
   rectMode(CENTER);
   textAlign(CENTER, CENTER);
   textSize(18);
 
-  let yBotones = LH * 0.90; // 486 aprox, en el margen libre bajo el asterisco
   let anchoBoton = 190;
   let altoBoton = 46;
-  let xSencillo = LW * 0.25; // 240
-  let xComplejo = LW * 0.75; // 720
+  let xSencillo = LW * 0.25;
+  let xComplejo = LW * 0.75;
 
   // Botón SENCILLO
   let activoSencillo = (modoJuego === "SENCILLO");
   stroke(activoSencillo ? color(80, 220, 120) : color(255, 255, 255, 120));
   strokeWeight(activoSencillo ? 4 : 2);
   fill(activoSencillo ? color(20, 90, 50, 220) : color(0, 0, 0, 120));
-  rect(xSencillo, yBotones, anchoBoton, altoBoton, 10);
+  rect(xSencillo, y, anchoBoton, altoBoton, 10);
   noStroke();
   fill(activoSencillo ? color(150, 255, 180) : color(255, 255, 255, 180));
-  text("🌿 SENCILLO", xSencillo, yBotones);
+  text("🌿 SENCILLO", xSencillo, y);
 
   // Botón COMPLEJO
   let activoComplejo = (modoJuego === "COMPLEJO");
   stroke(activoComplejo ? color(220, 90, 80) : color(255, 255, 255, 120));
   strokeWeight(activoComplejo ? 4 : 2);
   fill(activoComplejo ? color(100, 30, 25, 220) : color(0, 0, 0, 120));
-  rect(xComplejo, yBotones, anchoBoton, altoBoton, 10);
+  rect(xComplejo, y, anchoBoton, altoBoton, 10);
   noStroke();
   fill(activoComplejo ? color(255, 160, 140) : color(255, 255, 255, 180));
-  text("🔥 COMPLEJO", xComplejo, yBotones);
+  text("🔥 COMPLEJO", xComplejo, y);
   pop();
+}
+
+function pantallaIntro() {
+  image(imgPortada, 0, 0, LW, LH);
+
+  dibujarBotonesModo(LH * 0.90);
 
   dibujarBarraProgreso(LW / 2 - 150, LH * 0.97, 300, 14);
 
@@ -643,11 +644,11 @@ function actualizarJuego() {
 // PANTALLAS FINALES CON IMÁGENES PERSONALIZADAS
 // ==========================================
 function pantallaFinal(imagenFinal) {
-  // Dibuja la imagen de victoria o derrota
   image(imagenFinal, 0, 0, LW, LH);
 
-  // Barra de progreso interactiva para volver a jugar
-  dibujarBarraProgreso(LW / 2 - 150, LH * 0.85, 300, 22);
+  dibujarBotonesModo(LH * 0.90);
+
+  dibujarBarraProgreso(LW / 2 - 150, LH * 0.97, 300, 14);
 }
 
 function reiniciarJuego() {
