@@ -229,7 +229,7 @@ function windowResized() {
 function crearArboles() {
   arboles = [];
   for (let i = 0; i < cantidadArboles; i++) {
-    let x = random(40, LW - 40);
+    let x = random(radioNube / 2, LW - radioNube / 2); 
     let y = random(LH * 0.68, LH - 60);
     let nuevoArbol = new Arbol(x, y);
     nuevoArbol.estado = "FUEGO";
