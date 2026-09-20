@@ -285,9 +285,15 @@ function dibujarFondoHorizonte() {
   push();
   noStroke();
 
-  // 1. DEGRADÉ DE CIELO (Azul cálido arriba -> Dorado suave al horizonte)
-  let cArriba = color(40, 80, 140);   // Azul atardecer/bosque
-  let cHorizonte = color(230, 100, 100); // Tono cálido de horizonte
+  // 1. DEGRADÉ DE CIELO: mezcla entre amanecer y noche según el progreso del tiempo
+  let cArribaAmanecer = color(50, 70, 130);     // Azul suave de amanecer
+  let cHorizonteAmanecer = color(255, 150, 110); // Naranja cálido de amanecer
+
+  let cArribaNoche = color(5, 8, 22);            // Azul casi negro de noche
+  let cHorizonteNoche = color(15, 15, 40);       // Horizonte oscuro de noche
+
+  let cArriba = lerpColor(cArribaAmanecer, cArribaNoche, progreso);
+  let cHorizonte = lerpColor(cHorizonteAmanecer, cHorizonteNoche, progreso);
 
   for (let y = 0; y < LH * 0.65; y += 4) {
     let inter = map(y, 0, LH * 0.65, 0, 1);
@@ -296,7 +302,7 @@ function dibujarFondoHorizonte() {
     rect(0, y, LW, 5);
   }
 
-  // 2. MONTAÑAS/COLINAS LEJANAS (Capa 1 - Silueta suave suave)
+  // 2. MONTAÑAS/COLINAS LEJANAS (Capa 1 - Silueta suave)
   fill(80, 95, 90, 100);
   beginShape();
   vertex(0, LH * 0.65);
@@ -526,9 +532,11 @@ function pantallaIntro() {
 
 function actualizarJuego() {
 
-  dibujarFondoHorizonte();
   let segundosTranscurridos = floor((millis() - tiempoInicioJuego - tiempoAcumuladoPausa) / 1000);
   tiempoRestante = tiempoLimite - segundosTranscurridos;
+  let progresoTiempo = constrain(segundosTranscurridos / tiempoLimite, 0, 1);
+
+  dibujarFondoHorizonte(progresoTiempo);
 
   if (manoAbierta) {
     if (frameCount % 3 === 0) {
@@ -556,17 +564,9 @@ function actualizarJuego() {
 
   arboles.sort((a, b) => a.y - b.y);
 
-  let incendiosActivos = 0;
   for (let i = 0; i < arboles.length; i++) {
     arboles[i].mostrar();
-    if (arboles[i].estado === "FUEGO") incendiosActivos++;
   }
-
-  fill(255);
-  textAlign(LEFT, TOP);
-  textSize(16);
-  text("Tiempo: " + max(0, tiempoRestante) + "s", 20, 16);
-  text("Fuegos activos: " + incendiosActivos, 20, 38);
 }
 
 // ==========================================
