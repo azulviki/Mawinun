@@ -2,7 +2,7 @@
 let escena = "INTRO";
 let arboles = [];
 let gotas = [];
-let cantidadArboles = 30;
+let cantidadArboles = 40;
 let modoJuego = "SENCILLO"; // "SENCILLO" o "COMPLEJO"
 
 // Control de la Nube
