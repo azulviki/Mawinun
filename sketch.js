@@ -547,7 +547,10 @@ function intentarReiniciar() {
 }
 
 function dibujarBotonesModo(y) {
-  modoJuego = (nubeX < LW / 2) ? "SENCILLO" : "COMPLEJO";
+  // Solo permite cambiar el modo si no se está confirmando la selección (barra en 0)
+  if (nivelJuntarManos <= 0) {
+    modoJuego = (nubeX < LW / 2) ? "SENCILLO" : "COMPLEJO";
+  }
 
   push();
   rectMode(CENTER);
