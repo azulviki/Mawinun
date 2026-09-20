@@ -3,6 +3,7 @@ let escena = "INTRO";
 let arboles = [];
 let gotas = [];
 let cantidadArboles = 20;
+let modoJuego = "SENCILLO"; // "SENCILLO" o "COMPLEJO"
 
 // Control de la Nube
 let nubeX;
@@ -32,6 +33,7 @@ const JUNTAR_INCREMENTO = 0.08;
 const JUNTAR_DECAIMIENTO = 0.04; 
 
 const TIEMPO_MINIMO_PANTALLA = 1000; // 1 segundo de resguardo tras cambio de escena
+const PROBABILIDAD_REENCENDIDO = 0.0007; // ~una vez cada pocos segundos, por árbol apagado
 
 let cantidadManosDetectadas = 0;
 let estadoDosManosAbiertas = false;
@@ -595,6 +597,14 @@ function actualizarJuego() {
   arboles.sort((a, b) => a.y - b.y);
 
   for (let i = 0; i < arboles.length; i++) {
+    // Reencendido aleatorio, solo en modo COMPLEJO y solo una vez por árbol
+    if (modoJuego === "COMPLEJO" &&
+        arboles[i].estado === "APAGADO" &&
+        !arboles[i].seReencendio &&
+        random(1) < PROBABILIDAD_REENCENDIDO) {
+      arboles[i].estado = "FUEGO";
+      arboles[i].seReencendio = true;
+    }
     arboles[i].mostrar();
   }
 }
@@ -636,6 +646,7 @@ class Arbol {
     this.estado = "FUEGO";
     this.saludFuego = 100;
     this.desfaseAnimacion = floor(random(100));
+    this.seReencendio = false; // nuevo: controla que solo se reencienda 1 vez
   }
 
   mostrar() {
@@ -652,10 +663,13 @@ class Arbol {
     pop();
   }
 
-  recibirAgua() {
+    recibirAgua() {
     if (this.estado === "FUEGO") {
       this.saludFuego -= 25;
-      if (this.saludFuego <= 0) this.estado = "APAGADO";
+      if (this.saludFuego <= 0) {
+        this.estado = "APAGADO";
+        this.saludFuego = 100;
+      }
     }
   }
 }
