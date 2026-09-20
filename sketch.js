@@ -281,7 +281,7 @@ function oscReceived(address, value) {
 // ==========================================
 // FONDO ILUSTRADO: DEGRADÉ + HORIZONTE CON COLINAS
 // ==========================================
-function dibujarFondoHorizonte() {
+function dibujarFondoHorizonte(progreso) {
   push();
   noStroke();
 
