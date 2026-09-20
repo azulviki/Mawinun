@@ -33,7 +33,8 @@ const JUNTAR_INCREMENTO = 0.08;
 const JUNTAR_DECAIMIENTO = 0.04; 
 
 const TIEMPO_MINIMO_PANTALLA = 1000; // 1 segundo de resguardo tras cambio de escena
-const PROBABILIDAD_REENCENDIDO = 0.0007; // ~una vez cada pocos segundos, por árbol apagado
+const PROBABILIDAD_REENCENDIDO = 0.0007; // Una vez cada pocos segundos, por árbol apagado
+const MAX_REENCENDIDOS = 2; // Máximo de veces que un árbol puede reencenderse
 
 let cantidadManosDetectadas = 0;
 let estadoDosManosAbiertas = false;
@@ -597,13 +598,13 @@ function actualizarJuego() {
   arboles.sort((a, b) => a.y - b.y);
 
   for (let i = 0; i < arboles.length; i++) {
-    // Reencendido aleatorio, solo en modo COMPLEJO y solo una vez por árbol
+    // Reencendido aleatorio, solo en modo COMPLEJO y hasta 2 veces por árbol
     if (modoJuego === "COMPLEJO" &&
-        arboles[i].estado === "APAGADO" &&
-        !arboles[i].seReencendio &&
-        random(1) < PROBABILIDAD_REENCENDIDO) {
-      arboles[i].estado = "FUEGO";
-      arboles[i].seReencendio = true;
+    arboles[i].estado === "APAGADO" &&
+    arboles[i].vecesReencendido < MAX_REENCENDIDOS &&
+    random(1) < PROBABILIDAD_REENCENDIDO) {
+  arboles[i].estado = "FUEGO";
+  arboles[i].vecesReencendido++;
     }
     arboles[i].mostrar();
   }
@@ -646,7 +647,7 @@ class Arbol {
     this.estado = "FUEGO";
     this.saludFuego = 100;
     this.desfaseAnimacion = floor(random(100));
-    this.seReencendio = false; // nuevo: controla que solo se reencienda 1 vez
+    this.vecesReencendido = 0; // antes: this.seReencendio = false;
   }
 
   mostrar() {
