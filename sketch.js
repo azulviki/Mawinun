@@ -38,7 +38,7 @@ const JUNTAR_DECAIMIENTO = 0.04;
 const TIEMPO_MINIMO_PANTALLA = 1000; // 1 segundo de resguardo tras cambio de escena
 
 //MODO COMPLEJO
-const PROBABILIDAD_REENCENDIDO = 0.0015; // Una vez cada pocos segundos, por árbol apagado
+const PROBABILIDAD_REENCENDIDO = 0.0010; // Una vez cada pocos segundos, por árbol apagado
 const MAX_REENCENDIDOS = 3; // Máximo de veces que un árbol puede reencenderse
 
 let cantidadManosDetectadas = 0;
