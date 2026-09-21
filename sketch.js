@@ -2,7 +2,7 @@
 let escena = "INTRO";
 let arboles = [];
 let gotas = [];
-let cantidadArboles = 40;
+let cantidadArboles = 30;
 let modoJuego = "SENCILLO"; // "SENCILLO" o "COMPLEJO"
 
 const DISTANCIA_MINIMA_ARBOLES = 55; // píxeles mínimos entre centros de árboles
@@ -391,13 +391,13 @@ function draw() {
   if (!enLandscape) {
     if (!estabaPausadoPorRotacion) {
       estabaPausadoPorRotacion = true;
-      tiempoInicioPausa = millis(); // Empezamos a contar la pausa
+      tiempoInicioPausa = millis(); // se empieza a contar la pausa
     }
     dibujarCartelRotar();
     return;
   } else if (estabaPausadoPorRotacion) {
     estabaPausadoPorRotacion = false;
-    tiempoAcumuladoPausa += (millis() - tiempoInicioPausa); // Sumamos el tiempo que estuvo pausado
+    tiempoAcumuladoPausa += (millis() - tiempoInicioPausa); // Se suma el tiempo que estuvo pausado
   }
 
   actualizarControlesTeclado();
