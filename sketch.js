@@ -21,8 +21,8 @@ let tiempoLimite = 60;
 let tiempoRestante;
 let tiempoInicioJuego = 0;
 let framesPausados = 0;
-let tiempoInicioPausa = 0;      
-let tiempoAcumuladoPausa = 0;   
+let tiempoInicioPausa = 0;
+let tiempoAcumuladoPausa = 0;
 
 // VARIABLES DE CONTROL (Compartidas)
 let manoAbierta = false;
@@ -32,8 +32,8 @@ let últimoTouchTime = 0;
 
 // --- VARIABLES DE DETECCIÓN DE "2 MANOS ABIERTAS" ---
 let nivelJuntarManos = 0; // de 0 a 1
-const JUNTAR_INCREMENTO = 0.08; 
-const JUNTAR_DECAIMIENTO = 0.04; 
+const JUNTAR_INCREMENTO = 0.08;
+const JUNTAR_DECAIMIENTO = 0.04;
 
 const TIEMPO_MINIMO_PANTALLA = 1000; // 1 segundo de resguardo tras cambio de escena
 
@@ -68,8 +68,8 @@ let estabaPausadoPorRotacion = false;
 
 // --- VARIABLES PARA LAS IMÁGENES y ANIMACIÓN ---
 let imgPortada;
-let imgVictoria; 
-let imgDerrota;  
+let imgVictoria;
+let imgDerrota;
 let imgNubeGris;
 let imgNubeAgua;
 let imgArbolApagado;
@@ -85,8 +85,8 @@ let velocidadNubeTeclado = 8;
 // ==========================================
 function preload() {
   imgPortada = loadImage('assets/portada.png');
-  imgVictoria = loadImage('assets/victoria.png'); 
-  imgDerrota = loadImage('assets/derrota.png');   
+  imgVictoria = loadImage('assets/victoria.png');
+  imgDerrota = loadImage('assets/derrota.png');
   imgNubeGris = loadImage('assets/nube_gris.png');
   imgNubeAgua = loadImage('assets/nube_agua.png');
   imgArbolApagado = loadImage('assets/arbol_apagado.png');
@@ -120,14 +120,14 @@ function setup() {
     generarPasto();
   });
 
-   // ==========================================
+  // ==========================================
   // MEDIA PIPE (Cámara optimizada para móviles)
   // ==========================================
   video = createCapture({
     audio: false,
     video: {
       facingMode: "user",
-      width: { ideal: 320 },  
+      width: { ideal: 320 },
       height: { ideal: 240 }
     }
   });
@@ -139,16 +139,16 @@ function setup() {
   }
   video.hide();
 
-  
+
 
   hands = new Hands({
-    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-  });
+  locateFile: (file) => `libs/mediapipe/hands/${file}`
+});
 
   hands.setOptions({
     maxNumHands: 2,
-    modelComplexity: 0,       
-    minDetectionConfidence: 0.3, 
+    modelComplexity: 0,
+    minDetectionConfidence: 0.3,
     minTrackingConfidence: 0.3
   });
 
@@ -172,11 +172,11 @@ function setup() {
   crearArboles();
 }
 
-  // Función para generar las posiciones del pasto
-  function generarPasto() {
+// Función para generar las posiciones del pasto
+function generarPasto() {
   briznasPasto = [];
-  let cantidadBriznas = 600; 
-  
+  let cantidadBriznas = 600;
+
   for (let i = 0; i < cantidadBriznas; i++) {
     briznasPasto.push({
       x: random(0, LW),
@@ -205,7 +205,7 @@ async function solicitarWakeLock() {
 function touchStarted() {
   activarPantallaCompleta();
   solicitarWakeLock();
-  return false; 
+  return false;
 }
 
 function mousePressed() {
@@ -370,7 +370,7 @@ function dibujarFondoHorizonte(progreso) {
   // ==========================================
   strokeCap(ROUND);
   strokeWeight(1); // Grosor del bastoncito
-  
+
   for (let i = 0; i < briznasPasto.length; i++) {
     let b = briznasPasto[i];
     stroke(b.tono);
@@ -459,7 +459,7 @@ function evaluarManoAbierta(landmarks) {
   let muñeca = landmarks[0];
   let puntaIndice = landmarks[8];
   let baseIndice = landmarks[5];
-  
+
   let dPunta = dist(muñeca.x, muñeca.y, puntaIndice.x, puntaIndice.y);
   let dBase = dist(muñeca.x, muñeca.y, baseIndice.x, baseIndice.y);
 
@@ -468,13 +468,13 @@ function evaluarManoAbierta(landmarks) {
 
 function onHandResults(results) {
   let activarBarra = false;
-  
+
   if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
     cantidadManosDetectadas = results.multiHandLandmarks.length;
 
     let mano1 = results.multiHandLandmarks[0];
     let xMuñeca1 = 1 - mano1[0].x;
-    
+
     nubeX = lerp(nubeX, map(xMuñeca1, 0.15, 0.85, radioNube, LW - radioNube), 0.25);
     let mano1Abierta = evaluarManoAbierta(mano1);
     manoAbierta = mano1Abierta;
@@ -510,7 +510,7 @@ function actualizarBarraProgreso() {
 
 
 function actualizarControlesTeclado() {
-  if (keyIsDown(LEFT_ARROW))  nubeX -= velocidadNubeTeclado;
+  if (keyIsDown(LEFT_ARROW)) nubeX -= velocidadNubeTeclado;
   if (keyIsDown(RIGHT_ARROW)) nubeX += velocidadNubeTeclado;
   nubeX = constrain(nubeX, radioNube, LW - radioNube);
 
@@ -635,11 +635,11 @@ function actualizarJuego() {
   for (let i = 0; i < arboles.length; i++) {
     // Reencendido aleatorio, solo en modo COMPLEJO y hasta 2 veces por árbol
     if (modoJuego === "COMPLEJO" &&
-    arboles[i].estado === "APAGADO" &&
-    arboles[i].vecesReencendido < MAX_REENCENDIDOS &&
-    random(1) < PROBABILIDAD_REENCENDIDO) {
-  arboles[i].estado = "FUEGO";
-  arboles[i].vecesReencendido++;
+      arboles[i].estado === "APAGADO" &&
+      arboles[i].vecesReencendido < MAX_REENCENDIDOS &&
+      random(1) < PROBABILIDAD_REENCENDIDO) {
+      arboles[i].estado = "FUEGO";
+      arboles[i].vecesReencendido++;
     }
     arboles[i].mostrar();
   }
@@ -661,7 +661,7 @@ function reiniciarJuego() {
   gotas = [];
   manoAbierta = false;
   manoAbiertaAnterior = false;
-  
+
   // Guardamos el momento exacto de inicio en milisegundos
   tiempoInicioJuego = millis();
   tiempoAcumuladoPausa = 0;
@@ -699,7 +699,7 @@ class Arbol {
     pop();
   }
 
-    recibirAgua() {
+  recibirAgua() {
     if (this.estado === "FUEGO") {
       this.saludFuego -= 25;
       if (this.saludFuego <= 0) {
