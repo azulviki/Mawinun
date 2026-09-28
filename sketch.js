@@ -139,18 +139,34 @@ function setup() {
   }
   video.hide();
 
-  hands = new Hands({
-    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-  });
+const hands = new Hands({
+  locateFile: (file) => {
+    // Redirige la búsqueda de archivos .wasm, .data y .binarypb a tu carpeta local
+    return `./libs/mediapipe/hands/${file}`;
+  }
+});
 
-  hands.setOptions({
-    maxNumHands: 2,
-    modelComplexity: 0,       
-    minDetectionConfidence: 0.3, 
-    minTrackingConfidence: 0.3
-  });
+hands.setOptions({
+  maxNumHands: 1,
+  modelComplexity: 1,
+  minDetectionConfidence: 0.5,
+  minTrackingConfidence: 0.5
+});
 
-  hands.onResults(onHandResults);
+hands.onResults(onResults);
+
+  //hands = new Hands({
+  //  locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+  //});
+
+  //hands.setOptions({
+    //maxNumHands: 2,
+    //modelComplexity: 0,       
+    //minDetectionConfidence: 0.3, 
+    //minTrackingConfidence: 0.3
+  //});
+
+  //hands.onResults(onHandResults);
 
   const camera = new Camera(video.elt, {
     onFrame: async () => {
